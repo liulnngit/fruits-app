@@ -1,0 +1,87 @@
+version: "3.7"
+
+services:
+  discovery:
+    build: ./discovery-service
+    container_name: discovery
+    environment:
+      - eureka.client.serviceUrl.defaultZone=http://discovery:8010/eureka/
+    ports:
+      - "8010:8010"
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    environment:
+      - eureka.client.serviceUrl.defaultZone=http://discovery:8010/eureka/
+    ports:
+      - "8082:8082"
+    depends_on:
+      - discovery
+
+  emoji:
+    build: ./emoji-service
+    container_name: emoji
+    environment:
+      - spring.datasource.url=jdbc:postgresql://postgres:5432/postgres
+      - eureka.client.serviceUrl.defaultZone=http://discovery:8010/eureka/
+    depends_on:
+      - discovery
+      - postgres
+
+  fruits:
+    build: ./fruits-service
+    container_name: fruits
+    environment:
+      - eureka.client.serviceUrl.defaultZone=http://discovery:8010/eureka/
+      - spring.datasource.url=jdbc:mysql://mysql:3306/fruits?serverTimezone=UTC
+      - spring.zipkin.base-url=http://zipkin:9411/
+    depends_on:
+      - discovery
+      - emoji
+      - mysql
+
+  users:
+    build: ./user-service
+    container_name: users
+    environment:
+      - spring.datasource.url=jdbc:mysql://mysql:3306/fruits?serverTimezone=UTC
+      - eureka.client.serviceUrl.defaultZone=http://discovery:8010/eureka/
+      - spring.zipkin.base-url=http://zipkin:9411/
+    depends_on:
+      - discovery
+      - mysql
+
+  postgres:
+    image: 'postgres:13.5'
+    container_name: postgres2
+    restart: always
+    volumes:
+      - ./emoji-service/scripts/:/docker-entrypoint-initdb.d/
+      - ./.db/pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+
+  mysql:
+    image: mysql:8.0
+    restart: always
+    environment:
+      - MYSQL_DATABASE=fruits
+      - MYSQL_USER=admin
+      - MYSQL_PASSWORD=admin
+      - MYSQL_ROOT_PASSWORD=password
+    ports:
+      - "3306:3306"
+    expose:
+      - "3306"
+    volumes:
+      - ./user-service/scripts:/docker-entrypoint-initdb.d
+      - ./.db/mysqldata:/var/lib/mysql
+
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - "9411:9411"

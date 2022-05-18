@@ -1,0 +1,57 @@
+server.port: 8082
+
+eureka:
+  client:
+    serviceUrl.defaultZone: http://localhost:8010/eureka
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator.lower-case-service-id: true
+      routes[0]:
+        id: user-create
+        uri: lb://USER-WS
+        predicates[0]: Path=/user-ws/api/v1/users
+        predicates[1]: Method=POST
+        filters[0]: RemoveRequestHeader=Cookie
+        filters[1]: RewritePath=/user-ws/(?<segment>.*), /$\{segment}
+      routes[1]:
+        id: user-login
+        uri: lb://USER-WS
+        predicates[0]: Path=/user-ws/api/v1/users/login
+        predicates[1]: Method=POST
+        filters[0]: RemoveRequestHeader=Cookie
+        filters[1]: RewritePath=/user-ws/(?<segment>.*), /$\{segment}
+      routes[2]:
+        id: user-get
+        uri: lb://USER-WS
+        predicates[0]: Path=/user-ws/api/v1/users/**
+        predicates[1]: Method=GET
+        predicates[2]: Header=Authorization, Bearer (.*)
+        filters[0]: RemoveRequestHeader=Cookie
+        filters[1]: RewritePath=/user-ws/(?<segment>.*), /$\{segment}
+        filters[2]: AuthorizationHeaderFilter
+      routes[3]:
+        id: fruits-get
+        uri: lb://FRUITS-WS
+        predicates[0]: Path=/fruits-ws/api/v1/fruits/**
+        predicates[1]: Method=GET
+        predicates[2]: Header=Authorization, Bearer (.*)
+        filters[0]: RemoveRequestHeader=Cookie
+        filters[1]: RewritePath=/fruits-ws/(?<segment>.*), /$\{segment}
+        filters[2]: AuthorizationHeaderFilter
+      routes[4]:
+        id: fruits-swagger
+        uri: lb://FRUITS-WS
+        predicates[0]: Path=/fruits-ws/swagger-ui/**
+        filters[0]: RemoveRequestHeader=Cookie
+        filters[1]: RewritePath=/fruits-ws/(?<segment>.*), /$\{segment}
+
+management.endpoints.web.exposure.include: "health,info,mappings"
+
+jwt.secret: hfgry463hf746hf573ydh475fhy5739
+
+logging.level.org.springframework.web: TRACE
